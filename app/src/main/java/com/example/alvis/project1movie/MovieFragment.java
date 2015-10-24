@@ -1,14 +1,18 @@
 package com.example.alvis.project1movie;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -26,30 +30,33 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * A placeholder fragment containing a simple view.
  */
 public class MovieFragment extends Fragment {
 
-    private String APIKEY = "e4476354de0e78e27196b077f6a6d24e";
+    private String APIKEY = "";  //Enter APIKEY
     private final String LOG_TAG = FetchMovieTask.class.getSimpleName();
-    private ArrayAdapter<String> movieAdaptor;
+    private ArrayAdapter<HashMap> movieAdaptor;
 
     public MovieFragment() {
     }
 
 
-    private void updateWeather(){
+    private void updateMovie(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String sort = prefs.getString(getString(R.string.pref_sorting_key), getString(R.string.pref_sorting_default) );
         FetchMovieTask movieTask = new FetchMovieTask();
 
-        movieTask.execute();
+        movieTask.execute(sort);
 
     }
 
     public void onStart(){
         super.onStart();
-        updateWeather();
+        updateMovie();
     }
 
     @Override
@@ -67,7 +74,7 @@ public class MovieFragment extends Fragment {
         };*/
         //ArrayList<String> mMovieList= new ArrayList<String>(Arrays.asList(movieArray));
 
-        ArrayList<String> mMovieList = new ArrayList<String>();
+        ArrayList<HashMap> mMovieList = new ArrayList<>();
 
 
         movieAdaptor = new ImageAdapter(getActivity(), R.layout.list_item_movie,mMovieList);
@@ -76,42 +83,72 @@ public class MovieFragment extends Fragment {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         GridView gridView = (GridView) rootView.findViewById(R.id.grid_view_movie);
         gridView.setAdapter(movieAdaptor);
-
+        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                HashMap movie = movieAdaptor.getItem(position);
+                Intent intent = new Intent(getActivity(), DetailActivity.class).putExtra("map", movie);
+                startActivity(intent);
+                //Toast.makeText(getActivity(),movie, Toast.LENGTH_SHORT ).show();
+            }
+        });
         return rootView;
     }
 
-    private String[] getMovieDatafromJson(String movieJsonStr) throws JSONException{
+    private HashMap[] getMovieDatafromJson(String movieJsonStr) throws JSONException{
         final String OWM_RESULTS = "results";
         final String OWM_TITLE = "original_title";
-        final String OWM_PATH = "backdrop_path";
+        final String OWM_PATH = "poster_path";
+        final String OWM_RELEASE = "release_date";
+        final String OWM_VOTE = "vote_average";
+        final String OWM_SYNOPSIS = "overview";
+
         final String baseURL = "http://image.tmdb.org/t/p/w185";
 
         JSONObject movieJson = new JSONObject(movieJsonStr);
         JSONArray movieArray = movieJson.getJSONArray (OWM_RESULTS);
-        String[] resultStrs  = new String[20];
+        HashMap[] resultStrs  = new HashMap[20];
         for (int i=0; i<movieArray.length(); i++) {
+            HashMap<String, String> HMmovie = new HashMap<>();
+
             String path;
             String title;
+            String release;
+            String vote;
+            String synopsis;
+
             JSONObject movie = movieArray.getJSONObject(i);
             path = movie.getString(OWM_PATH);
             title = movie.getString(OWM_TITLE);
+            release = movie.getString(OWM_RELEASE);
+            vote = movie.getString(OWM_VOTE);
+            synopsis = movie.getString(OWM_SYNOPSIS);
+
+
+
+            HMmovie.put("PATH", baseURL+path);
+            HMmovie.put("TITLE", title);
+            HMmovie.put("RELEASE", release);
+            HMmovie.put("VOTE", vote);
+            HMmovie.put("SYNOPSIS", synopsis);
+
 
             //resultStrs[i] = title + " - " + path ;
 
-            resultStrs[i] = baseURL+path;
+            resultStrs[i] = HMmovie;
         }
 
         return resultStrs;
     }
 
-    class ImageAdapter extends ArrayAdapter<String> {
+    class ImageAdapter extends ArrayAdapter<HashMap> {
 
         private Context mContext;
         private int mlayoutResourceId;
         LayoutInflater inflater;
-        private ArrayList<String> mitems = new ArrayList<String>();
+        private ArrayList<HashMap> mitems = new ArrayList<>();
 
-        public ImageAdapter(Context context, int layoutResourceId, ArrayList<String> items) {
+        public ImageAdapter(Context context, int layoutResourceId, ArrayList<HashMap> items) {
             super(context, layoutResourceId, items);
             mContext = context;
             mlayoutResourceId = layoutResourceId;
@@ -134,9 +171,9 @@ public class MovieFragment extends Fragment {
                 imageView = (ImageView)convertView;
             }
 
+            HashMap movie = mitems.get(position);
+            String image =  (String)movie.get("PATH");
 
-            String image =  mitems.get(position);
-            
             Picasso.with(mContext).load(image).into(imageView);
 
             return imageView;
@@ -150,19 +187,19 @@ public class MovieFragment extends Fragment {
 
 
 
-    public class FetchMovieTask extends AsyncTask<String, Void, String[]>{
+    public class FetchMovieTask extends AsyncTask<String, Void, HashMap[]>{
 
-        protected void onPostExecute(String[] strings) {
-            Log.v(LOG_TAG, "OnPostExecute" + strings.length);
-            if (strings != null)
-                movieAdaptor.clear();
-            for (String movieStr : strings){
-                movieAdaptor.add(movieStr);
+        protected void onPostExecute(HashMap[] hashmaps) {
+            Log.v(LOG_TAG, "OnPostExecute" + hashmaps.length);
+            movieAdaptor.clear();
+            for (HashMap moviehm : hashmaps){
+                //String movieurl = (String)moviehm.get("PATH");
+                movieAdaptor.add(moviehm);
             }
         }
 
         @Override
-        protected String[] doInBackground(String... params) {
+        protected HashMap[] doInBackground(String... params) {
             //if (params.length ==0) {
             //    return null;
            // }
@@ -173,10 +210,12 @@ public class MovieFragment extends Fragment {
             String movieJsonStr = null;
 
             try{
-                final String baseURL = "http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=";
+                final String baseURL = "http://api.themoviedb.org/3/discover/movie?";
                 final String KEY_PARAM = "api_key";
+                final String SORT_PARAM = "sort_by";
                 Uri buildUri = Uri.parse(baseURL).buildUpon()
                         .appendQueryParameter(KEY_PARAM, APIKEY)
+                        .appendQueryParameter(SORT_PARAM, params[0])
                         .build();
                 URL url = new URL(buildUri.toString());
                 Log.v(LOG_TAG, "Built URI"+ buildUri.toString());

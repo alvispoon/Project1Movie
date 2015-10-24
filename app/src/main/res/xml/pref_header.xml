@@ -1,0 +1,16 @@
+<preference-headers xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:unified="http://schemas.android.com/apk/res-auto" >
+
+    <!--
+	/*
+	** Header definitions are identical to android:* except for preferenceRes which should be a reference to a preference xml file
+	** Unlike the native headers these are also used for building the single pane version.
+	*/
+    -->
+    <header
+        android:fragment="com.example.alvis.project1movie.SettingsActivity$SortingPreferenceFragment"
+        android:title="@string/pref_header_sorting"
+         />
+
+
+</preference-headers>
